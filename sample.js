@@ -1,28 +1,22 @@
 var app = require('express')();
-var server = require('http').createServer(app);
-// http server를 socket.io server로 upgrade한다
-var io = require('socket.io')(server);
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 
-// localhost:3000으로 서버에 접속하면 클라이언트로 index.html을 전송한다
-server.listen(3000, () => {
-  console.log('connect 3000');
+app.get('/', function(req, res) {
+   res.sendfile('index.html');
 });
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
-});
+var roomno = 1;
+io.on('connection', function(socket) {
 
-// NameSpace 1번
-const namespace1 = io.of('/namespace1');
+   //Increase roomno 2 clients are present in a room.
+   if(io.nsps['/'].adapter.rooms["room-"+roomno] && io.nsps['/'].adapter.rooms["room-"+roomno].length > 1) roomno++;
+   socket.join("room-"+roomno);
 
-// connection을 받으면, news 이벤트에 hello 객체를 담아 보낸다
-namespace1.on('connection', (socket) => {
-  namespace1.emit('news', { hello: "Someone connected at namespace1" });
-});
+   //Send this event to everyone in the room.
+   io.sockets.in("room-"+roomno).emit('connectToRoom', "You are in room no. "+roomno);
+})
 
-// NameSpace 2번
-const namespace2 = io.of('/namespace2');
-// connection을 받으면, news 이벤트에 hello 객체를 담아 보낸다
-namespace2.on('connection', (socket) => {
-  namespace2.emit('news', { hello: "Someone connected at Namespace2" });
+http.listen(3000, function() {
+   console.log('listening on localhost:3000');
 });
