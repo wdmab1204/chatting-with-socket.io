@@ -14,7 +14,7 @@ io.on('connection', function(socket) {
 
   // 접속한 클라이언트의 정보가 수신되면
   socket.on('login', function(data) {
-    console.log('Client logged-in:\n name:' + data.name + '\n userid: ' + data.userid);
+    console.log('%s(%s) is logined',data.name,data.userid);
 
     // socket에 클라이언트 정보를 저장한다
     socket.name = data.name;
