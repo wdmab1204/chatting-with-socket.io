@@ -1,22 +1,64 @@
 var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var server = require('http').createServer(app);
+// http server를 socket.io server로 upgrade한다
+var io = require('socket.io')(server);
 
+// localhost:3000으로 서버에 접속하면 클라이언트로 index.html을 전송한다
 app.get('/', function(req, res) {
-   res.sendfile('index.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
-var roomno = 1;
+// connection event handler
+// connection이 수립되면 event handler function의 인자로 socket인 들어온다
 io.on('connection', function(socket) {
 
-   //Increase roomno 2 clients are present in a room.
-   if(io.nsps['/'].adapter.rooms["room-"+roomno] && io.nsps['/'].adapter.rooms["room-"+roomno].length > 1) roomno++;
-   socket.join("room-"+roomno);
+  // 접속한 클라이언트의 정보가 수신되면
+  socket.on('login', function(data) {
+    console.log('Client logged-in:\n name:' + data.name + '\n userid: ' + data.userid);
 
-   //Send this event to everyone in the room.
-   io.sockets.in("room-"+roomno).emit('connectToRoom', "You are in room no. "+roomno);
-})
+    // socket에 클라이언트 정보를 저장한다
+    socket.name = data.name;
+    socket.userid = data.userid;
 
-http.listen(3000, function() {
-   console.log('listening on localhost:3000');
+    // 접속된 모든 클라이언트에게 메시지를 전송한다
+    io.emit('login', data.name );
+  });
+
+  // 클라이언트로부터의 메시지가 수신되면
+  socket.on('chat', function(data) {
+    console.log('Message from %s: %s', socket.name, data.msg);
+
+    var msg = {
+      from: {
+        name: socket.name,
+        userid: socket.userid
+      },
+      msg: data.msg
+    };
+
+    // 메시지를 전송한 클라이언트를 제외한 모든 클라이언트에게 메시지를 전송한다
+    socket.broadcast.emit('chat', msg);
+
+    // 메시지를 전송한 클라이언트에게만 메시지를 전송한다
+    // socket.emit('chat', msg);
+
+    // 접속된 모든 클라이언트에게 메시지를 전송한다
+    // io.emit('chat', msg);
+
+    // 특정 클라이언트에게만 메시지를 전송한다
+    // io.to(id).emit('chat', data);
+  });
+
+  // force client disconnect from server
+  socket.on('forceDisconnect', function() {
+    socket.disconnect();
+  })
+
+  socket.on('disconnect', function() {
+    console.log('user disconnected: ' + socket.name);
+  });
+});
+
+server.listen(3000, function() {
+  console.log('Socket IO server listening on port 3000');
 });
